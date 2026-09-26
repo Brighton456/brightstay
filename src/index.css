@@ -1,0 +1,304 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.85rem;
+
+  /* Semantic status colors — stay constant across themes */
+  --success: 142 45% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 46%;
+  --warning-foreground: 0 0% 100%;
+  --info: 199 80% 44%;
+  --info-foreground: 0 0% 100%;
+  --destructive: 4 72% 52%;
+  --destructive-foreground: 0 0% 100%;
+
+  /* Glass & shadows (accent overrides can tune these) */
+  --glass-bg: 0 0% 100% / 0.66;
+  --glass-border: 0 0% 100% / 0.4;
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.18), 0 1px 3px 0 rgb(0 0 0 / 0.2);
+  --shadow-elevated: 0 6px 20px -4px rgb(0 0 0 / 0.3), 0 2px 6px -2px rgb(0 0 0 / 0.15);
+  --shadow-soft: 0 12px 40px -12px rgb(0 0 0 / 0.4);
+}
+
+/* =========================================================
+   MODE — BLACK · dark neutrals (default)
+   ========================================================= */
+:root,
+:root[data-mode="dark"] {
+  color-scheme: dark;
+  --background: 20 16% 7%;
+  --foreground: 36 30% 94%;
+
+  --card: 22 14% 11%;
+  --card-foreground: 36 30% 94%;
+
+  --popover: 22 15% 10%;
+  --popover-foreground: 36 30% 94%;
+
+  --secondary: 24 12% 16%;
+  --secondary-foreground: 36 28% 92%;
+
+  --muted: 24 12% 15%;
+  --muted-foreground: 32 12% 62%;
+
+  --border: 24 10% 20%;
+  --input: 24 10% 20%;
+}
+
+/* =========================================================
+   MODE — WHITE · light neutrals
+   ========================================================= */
+:root[data-mode="light"] {
+  color-scheme: light;
+  --background: 40 33% 94%;
+  --foreground: 24 24% 13%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 24 24% 13%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 24 24% 13%;
+
+  --secondary: 26 26% 26%;
+  --secondary-foreground: 40 30% 96%;
+
+  --muted: 40 30% 90%;
+  --muted-foreground: 26 12% 44%;
+
+  --border: 34 28% 84%;
+  --input: 34 28% 84%;
+}
+
+/* =========================================================
+   CRIMSON — dense dark red (default brand)
+   ========================================================= */
+:root,
+:root[data-accent="crimson"] {
+  --primary: 348 65% 44%;
+  --primary-foreground: 0 0% 100%;
+
+  --accent: 350 55% 20%;
+  --accent-foreground: 36 30% 92%;
+
+  --ring: 347 70% 55%;
+
+  /* BrightStay custom tokens */
+  --gold: 36 68% 58%;
+  --gold-soft: 38 55% 90%;
+  --bronze: 24 40% 45%;
+  --espresso: 24 20% 6%;
+  --cream: 36 24% 88%;
+
+  /* Brand accent scale (crimson — deep red, tuned for dark UI) */
+  --brand-50: 349 60% 18%;
+  --brand-100: 349 58% 24%;
+  --brand-200: 348 56% 34%;
+  --brand-300: 347 55% 46%;
+  --brand-400: 347 62% 56%;
+  --brand-500: 347 72% 42%;
+  --brand-600: 348 75% 33%;
+  --brand-700: 349 70% 62%;
+  --brand-800: 349 72% 74%;
+  --brand-900: 350 78% 86%;
+  --brand-950: 350 82% 94%;
+
+  --shadow-brand: 0 10px 30px -8px hsl(348 70% 28% / 0.55), 0 4px 8px -4px hsl(348 70% 28% / 0.3);
+
+  --sidebar-background: 20 22% 5%;
+  --sidebar-foreground: 40 24% 90%;
+  --sidebar-primary: 347 70% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 350 45% 20%;
+  --sidebar-accent-foreground: 40 24% 92%;
+  --sidebar-border: 24 14% 20%;
+  --sidebar-ring: 347 70% 55%;
+}
+
+/* =========================================================
+   GOLD — warm golden hour (light-friendly)
+   ========================================================= */
+:root[data-accent="gold"] {
+  --primary: 34 62% 47%;
+  --primary-foreground: 40 40% 98%;
+
+  --accent: 42 55% 91%;
+  --accent-foreground: 26 30% 18%;
+
+  --ring: 34 62% 47%;
+
+  --gold: 36 68% 55%;
+  --gold-soft: 42 70% 92%;
+  --bronze: 26 40% 34%;
+  --espresso: 24 22% 15%;
+  --cream: 40 33% 96%;
+
+  /* Brand accent scale (gold) */
+  --brand-50: 42 70% 94%;
+  --brand-100: 42 82% 88%;
+  --brand-200: 40 74% 78%;
+  --brand-300: 38 68% 65%;
+  --brand-400: 36 66% 55%;
+  --brand-500: 35 64% 48%;
+  --brand-600: 34 62% 42%;
+  --brand-700: 32 58% 37%;
+  --brand-800: 28 52% 31%;
+  --brand-900: 26 46% 26%;
+  --brand-950: 24 42% 18%;
+
+  --shadow-card: 0 1px 2px 0 rgb(40 30 20 / 0.05), 0 1px 3px 0 rgb(40 30 20 / 0.06);
+  --shadow-elevated: 0 6px 20px -4px rgb(40 30 20 / 0.12), 0 2px 6px -2px rgb(40 30 20 / 0.06);
+  --shadow-soft: 0 12px 40px -12px rgb(40 30 20 / 0.18);
+  --shadow-brand: 0 10px 30px -8px hsl(36 68% 45% / 0.45), 0 4px 8px -4px hsl(36 68% 45% / 0.25);
+
+  --sidebar-background: 24 22% 14%;
+  --sidebar-foreground: 40 30% 90%;
+  --sidebar-primary: 36 68% 55%;
+  --sidebar-primary-foreground: 24 22% 12%;
+  --sidebar-accent: 28 20% 22%;
+  --sidebar-accent-foreground: 40 30% 92%;
+  --sidebar-border: 26 16% 22%;
+  --sidebar-ring: 36 68% 55%;
+}
+
+/* =========================================================
+   FOREST — dense dark green
+   ========================================================= */
+:root[data-accent="forest"] {
+  --primary: 152 55% 40%;
+  --primary-foreground: 0 0% 100%;
+
+  --accent: 152 45% 20%;
+  --accent-foreground: 120 22% 92%;
+
+  --ring: 152 60% 46%;
+
+  --gold: 40 70% 60%;
+  --gold-soft: 42 60% 92%;
+  --bronze: 130 22% 45%;
+  --espresso: 150 18% 6%;
+  --cream: 120 18% 88%;
+
+  /* Brand accent scale (forest) */
+  --brand-50: 152 40% 16%;
+  --brand-100: 152 42% 22%;
+  --brand-200: 153 42% 32%;
+  --brand-300: 153 44% 44%;
+  --brand-400: 153 50% 55%;
+  --brand-500: 152 55% 38%;
+  --brand-600: 153 58% 28%;
+  --brand-700: 150 60% 58%;
+  --brand-800: 148 62% 70%;
+  --brand-900: 146 64% 84%;
+  --brand-950: 144 66% 93%;
+
+  --shadow-brand: 0 10px 30px -8px hsl(152 55% 28% / 0.55), 0 4px 8px -4px hsl(152 55% 28% / 0.3);
+
+  --sidebar-background: 152 24% 5%;
+  --sidebar-foreground: 120 22% 90%;
+  --sidebar-primary: 152 60% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 152 44% 20%;
+  --sidebar-accent-foreground: 120 22% 92%;
+  --sidebar-border: 152 18% 20%;
+  --sidebar-ring: 152 60% 46%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+    /* Lock zoom/pinch — effective even where browsers ignore the viewport meta */
+    touch-action: pan-x pan-y;
+    overscroll-behavior-y: none;
+    accent-color: hsl(var(--brand-500));
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: hsl(var(--brand-600) / 0.4);
+  }
+}
+
+@layer utilities {
+  .glass-card {
+    @apply backdrop-blur-xl border border-border/60 bg-card/70;
+  }
+  .glass-dark {
+    @apply backdrop-blur-xl border border-white/10 bg-foreground/5;
+  }
+  .gradient-brand {
+    background: linear-gradient(135deg, hsl(var(--brand-400)), hsl(var(--brand-600)));
+  }
+  .gradient-cream {
+    background: linear-gradient(160deg, hsl(var(--cream) / 0.9), hsl(var(--muted)));
+  }
+  .gradient-espresso {
+    background: linear-gradient(150deg, hsl(var(--espresso) / 1) 0%, hsl(24 10% 4%) 100%);
+  }
+  .text-gradient-brand {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(115deg, hsl(var(--brand-400)), hsl(var(--brand-600)));
+  }
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .stat-number {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  .status-pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap;
+  }
+  .status-success {
+    @apply status-pill bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20;
+  }
+  .status-warning {
+    @apply status-pill bg-amber-50 text-amber-700 ring-1 ring-amber-600/20;
+  }
+  .status-danger {
+    @apply status-pill bg-red-50 text-red-700 ring-1 ring-red-600/20;
+  }
+  .status-neutral {
+    @apply status-pill bg-stone-100 text-stone-600 ring-1 ring-stone-600/20;
+  }
+  .status-info {
+    @apply status-pill bg-sky-50 text-sky-700 ring-1 ring-sky-600/20;
+  }
+  .btn-press {
+    @apply transition-all duration-150 active:scale-[0.97];
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-brand {
+    box-shadow: var(--shadow-brand);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
