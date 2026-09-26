@@ -33,3 +33,5 @@ dist-ssr
 # Server/runtime logs
 dev-server.log
 install.log
+
+.vercel
