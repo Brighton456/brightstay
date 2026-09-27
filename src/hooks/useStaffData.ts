@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchStaffOverview, type StaffOverview } from "@/services/staffAuth";
 import { useAppSession } from "@/contexts/AppSessionContext";
 
@@ -8,6 +8,7 @@ export function useStaffData() {
   const token = session?.kind === "staff" ? session.token : null;
   const [data, setData] = useState<StaffOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!token) {
@@ -26,7 +27,9 @@ export function useStaffData() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, nonce]);
 
-  return { data, loading, token };
+  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+
+  return { data, loading, token, refresh };
 }

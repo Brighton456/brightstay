@@ -53,13 +53,21 @@ describe("BrightStay smoke", () => {
   it("renders the tenant login-only page with the access-code quiz", async () => {
     renderApp("/auth");
     expect(await screen.findByText(/Welcome home/i)).toBeInTheDocument();
+    expect(await screen.findByTestId("access-code-input")).toBeInTheDocument();
     expect(await screen.findByText(/New tenant\? Click here to log in with your access code/i)).toBeInTheDocument();
   });
 
-  it("renders the manager login", async () => {
+  it("keeps tenants login-only — no signup affordance on /auth", async () => {
+    renderApp("/auth");
+    expect(await screen.findByText(/I'm a tenant/i)).toBeInTheDocument();
+    expect(screen.queryByText(/sign up/i, { exact: false })).not.toBeInTheDocument();
+  });
+
+  it("renders the landlord sign-in at /manager (never labelled Manager)", async () => {
     renderApp("/manager");
-    expect(await screen.findByText(/Staff portal/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Landlord portal/i)).length).toBeGreaterThan(0);
     expect(screen.getByTestId("manager-username")).toBeInTheDocument();
+    expect(screen.queryByText(/Manager portal/i)).not.toBeInTheDocument();
   });
 
   it("shows the 6-digit access code page", async () => {

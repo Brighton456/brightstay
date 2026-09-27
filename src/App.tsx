@@ -9,7 +9,7 @@ import { SplashScreen } from "@/components/app/SplashScreen";
 
 import Landing from "@/pages/Landing";
 import Auth from "@/pages/Auth";
-import ManagerLogin from "@/pages/ManagerLogin";
+import ManagerLogin, { ManagerAuthScreen } from "@/pages/ManagerLogin";
 import ManagerChangePassword from "@/pages/ManagerChangePassword";
 import TenantAccess from "@/pages/TenantAccess";
 import TenantOnboarding from "@/pages/TenantOnboarding";
@@ -44,7 +44,11 @@ function RoleHome() {
   if (session?.kind === "tenant") {
     return <Navigate to={session.tenant.onboardingCompleted ? "/app" : "/tenant/onboarding"} replace />;
   }
-  if (session?.kind === "staff") return <Navigate to="/portal" replace />;
+  if (session?.kind === "staff") {
+    return session.mustChangePassword
+      ? <Navigate to="/manager/change-password" replace />
+      : <Navigate to="/portal" replace />;
+  }
   return <Navigate to="/auth" replace />;
 }
 
@@ -54,6 +58,7 @@ export function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/manager" element={<ManagerLogin />} />
+      <Route path="/manager/register" element={<ManagerAuthScreen initialMode="register" />} />
       <Route path="/manager/change-password" element={<ManagerChangePassword />} />
       <Route path="/tenant/access" element={<TenantAccess />} />
       <Route path="/tenant/onboarding" element={<TenantOnboarding />} />

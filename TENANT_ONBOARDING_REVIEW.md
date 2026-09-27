@@ -66,7 +66,54 @@ File: `supabase/migrations/20260926170000_tenant_onboarding_auth_tables.sql`
 - Live DB E2E ✅: `staff_login` → `staff_add_unit` → `allocate_unit_v2` (code issued, deposit M-Pesa + rent Cash recorded with references) → `tenant_verify_code` → 3 × `tenant_save_step` → `tenant_complete` → `tenant_session_data` returns unit, household, emergency contacts and both payments
 - Test rows cleaned up afterwards
 
-## Known gaps / next steps
+## Session 2 (2026-09-26 evening) — corrected auth model + hardening
+
+### 5. Migration 0015 — landlord signup, "stay logged in", RLS lockdown ✅ live
+File: `supabase/migrations/20260927000015_landlord_signup_and_session_sliding.sql`
+- **Landlord self-signup** (first run only): `staff_has_landlord()` probe + `staff_signup_landlord()`
+  (bcrypt, username/password validation, audit-logged, closed forever once a landlord exists)
+- **Apartment registration**: `staff_create_property(p_token, name, location, description)` — landlord-only,
+  binds `staff_accounts.property_id`
+- **Stay logged in**: staff sessions 12h → **30 days with sliding renewal** (`touch_session()` fired on every
+  `staff_session` / `tenant_session_data` check); `tenant_sessions` gained `expires_at` (previously infinite)
+- **RLS lockdown**: the 8 auth tables (`staff_accounts`, `staff_sessions`, `tenant_identities`,
+  `tenant_access_codes`, `tenant_sessions`, `tenant_onboarding`, `tenant_household_members`,
+  `tenant_emergency_contacts`) now have RLS **enabled** with zero policies + `revoke all` from
+  anon/authenticated → reachable only through SECURITY DEFINER RPCs (advisor critical resolved)
+- Full EXECUTE-privilege audit of the 20-RPC auth surface
+
+### 6. Migration 0016 — legacy surface removal ✅ live
+File: `supabase/migrations/20260927000016_lockdown_legacy_rpc_surface.sql`
+- Dropped v1 RPCs `allocate_unit(uuid,uuid,numeric,numeric,numeric)`, `generate_access_code()`,
+  `verify_access_code(character)` (superseded by token-authenticated `allocate_unit_v2` / code flow;
+  app verified to make zero direct table reads and no references)
+- Pinned `search_path` on legacy helpers `update_updated_at_column`, `staff_permission_allows` (advisor WARN)
+
+### 7. Frontend — corrected role model (user decisions)
+- `/auth` rebuilt: **tenant access-code login is the primary card** (login-only, no signup anywhere),
+  caretaker username/password behind an "I'm a caretaker" switch → routes to `/portal`
+  (previously mis-routed to `/manager`); discreet "Landlord?" link top-right
+- `/manager` rebuilt as the **landlord gate** (never labelled "Manager"): sign-in + first-run
+  **"Create your landlord account + register your apartment"** flow; a signed-in landlord without a
+  property is dropped into `ApartmentRegistration` automatically; `/manager/register` route added
+- `ProtectedRoute` + `RoleHome` enforce `mustChangePassword` (restored from persisted sessions too)
+- `AppSessionContext`: `signUpLandlord()`, `refreshStaffSession()`, `mustChangePassword` now survives reloads
+- Smoke tests updated: 5/5 (login-only assertion, landlord-branding assertion)
+
+### 8. Verification (this session)
+- `npx tsc --noEmit` ✅ · `npm run test` ✅ 5/5 · `npm run build` ✅ (chunk warning only)
+- Live probe: second-landlord signup refused (`"A landlord account already exists…"`), zero rows written
+- Advisors re-run: critical RLS finding resolved; remaining WARNs documented below
+
+### Remaining advisories / next steps (updated)
+1. **Leaked-password protection** is off in Supabase Auth settings (advisory) — enable in dashboard.
+2. **22 SECURITY DEFINER RPCs are anon-executable by design** (login/verify/signup probes must be public;
+   every privileged one is token-gated). Accepted risk, documented here.
+3. Legacy anon-readable tables (audit_logs, documents, messages, … policies written for anon role) —
+   candidates for a 0017 tidy-up since the app no longer reads tables directly.
+4. Seeded `admin` account: once the real landlord signs up and confirms access, deactivate it
+   (SQL/RPC needed) instead of merely rotating the password.
+5. Tenant maintenance requests RPC + M-Pesa STK wiring unchanged from previous list.
 1. Tenant maintenance requests are local-only until a `tenant_create_request` RPC is added.
 2. Old email-based flows removed: `Onboarding.tsx` (staff property wizard), `OrgContext`, `lib/api.ts` deleted — portal now runs purely on RPCs.
 3. M-Pesa STK payment pages (brightpay) are not wired to the new tenant identities yet.

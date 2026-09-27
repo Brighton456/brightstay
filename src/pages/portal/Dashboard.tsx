@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Banknote, TrendingUp, DoorOpen, ArrowUpRight, Wallet, Users, ChevronRight, Rocket } from "lucide-react";
+import { Banknote, TrendingUp, DoorOpen, ArrowUpRight, Wallet, Users, ChevronRight, Rocket, HandCoins, TriangleAlert, Wrench } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { format, subMonths } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
@@ -135,7 +135,47 @@ export default function PortalDashboard() {
         <div className="rounded-2xl border bg-card p-5 shadow-card">
           <p className="font-display text-lg font-semibold text-foreground">Attention needed</p>
           <div className="mt-3 space-y-3">
-            <div className="flex items-start gap-3 rounded-xl border border-brand-200/60 bg-brand-100/40 p-3">
+            {role === "landlord" && (data.summary?.awaitingCount ?? 0) > 0 && (
+              <Link to="/portal/payments" className="flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 transition hover:shadow-card">
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                  <HandCoins className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">
+                    {data.summary?.awaitingCount} payment{data.summary?.awaitingCount === 1 ? "" : "s"} awaiting your confirmation
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Cash to receive or caretaker-recorded M-Pesa to approve.</p>
+                </div>
+                <ChevronRight className="ml-auto mt-1 h-4 w-4 text-stone-300" />
+              </Link>
+            )}
+            {(data.summary?.outstanding ?? 0) > 0 && (
+              <Link to="/portal/tenants" className="flex items-start gap-3 rounded-xl border border-rose-200/60 bg-rose-50/60 p-3 transition hover:shadow-card">
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                  <TriangleAlert className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">{formatKES(data.summary?.outstanding ?? 0)} rent outstanding</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">See who has and hasn't paid this month on the Residents board.</p>
+                </div>
+                <ChevronRight className="ml-auto mt-1 h-4 w-4 text-stone-300" />
+              </Link>
+            )}
+            {(data.summary?.openRequests ?? 0) > 0 && (
+              <Link to="/portal/requests" className="flex items-start gap-3 rounded-xl border border-sky-200/60 bg-sky-50/60 p-3 transition hover:shadow-card">
+                <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+                  <Wrench className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-foreground">
+                    {data.summary?.openRequests} open maintenance request{data.summary?.openRequests === 1 ? "" : "s"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Tenants are waiting for updates.</p>
+                </div>
+                <ChevronRight className="ml-auto mt-1 h-4 w-4 text-stone-300" />
+              </Link>
+            )}
+            <Link to="/portal/rooms" className="flex items-start gap-3 rounded-xl border border-brand-200/60 bg-brand-100/40 p-3 transition hover:shadow-card">
               <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                 <Rocket className="h-4 w-4" />
               </span>
@@ -147,9 +187,7 @@ export default function PortalDashboard() {
                   Allocate a vacant house to a new tenant from Rooms — deposit, rent and their access code in one flow.
                 </p>
               </div>
-            </div>
-            <Link to="/portal/rooms" className="mt-1 flex items-center justify-between pt-2 text-sm font-semibold text-brand-700">
-              Go to rooms <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="ml-auto mt-1 h-4 w-4 text-stone-300" />
             </Link>
           </div>
         </div>

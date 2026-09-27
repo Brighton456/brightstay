@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home as HomeIcon, Wallet, Receipt, CheckCircle2, Clock, Hash, ChevronRight } from "lucide-react";
+import { Home as HomeIcon, Wallet, Receipt, CheckCircle2, Clock, Hash, ChevronRight, CalendarCheck2, Smartphone } from "lucide-react";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { fetchTenantSession, type TenantDashboardData } from "@/services/tenantPortal";
 import { StatusBadge } from "@/components/app/StatusBadge";
@@ -102,6 +102,43 @@ export default function TenantHome() {
           />
         </div>
       </div>
+
+      {/* Rent tracker — months paid, dues, quick pay */}
+      {data.rentLedger && data.rentLedger.months.length > 0 && (
+        <div className="rounded-2xl border bg-card p-5 shadow-card" data-testid="home-rent-tracker">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-700/80">Rent tracker</p>
+              <p className="mt-1 font-display text-lg font-semibold text-foreground">
+                {data.rentLedger.summary.monthsPaid} month{data.rentLedger.summary.monthsPaid === 1 ? "" : "s"} paid
+                {data.rentLedger.summary.outstanding > 0 && (
+                  <span className="text-rose-600"> · {formatKES(data.rentLedger.summary.outstanding)} due</span>
+                )}
+              </p>
+            </div>
+            <Link
+              to="/app/payments"
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-brand-600 px-3.5 text-xs font-bold text-white shadow-card"
+            >
+              <Smartphone className="h-3.5 w-3.5" /> Pay now
+            </Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {data.rentLedger.months.slice(-8).reverse().map((m) => (
+              <span
+                key={m.period}
+                title={`${m.label}: due ${formatKES(m.due)}, paid ${formatKES(m.paid)}`}
+                className={
+                  "inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-bold " +
+                  (m.status === "paid" ? "bg-emerald-100 text-emerald-800" : m.status === "partial" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-700")
+                }
+              >
+                <CalendarCheck2 className="h-3 w-3" /> {m.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* House snapshot */}
       <Link to="/app/house" className="block">

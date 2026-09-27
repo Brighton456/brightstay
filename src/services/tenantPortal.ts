@@ -90,6 +90,28 @@ export interface TenantPayment {
   category: string;
   status: string;
   paidAt: string;
+  id?: string;
+  notes?: string | null;
+}
+
+export interface TenantLedgerMonth {
+  period: string; // YYYY-MM
+  label: string; // "Mar 2026"
+  due: number;
+  paid: number;
+  status: "paid" | "partial" | "unpaid";
+}
+
+export interface TenantRentLedger {
+  months: TenantLedgerMonth[];
+  summary: {
+    monthsPaid: number;
+    monthsPartial: number;
+    monthsUnpaid: number;
+    outstanding: number;
+    advance: number;
+    monthlyRent: number;
+  };
 }
 
 export interface TenantDashboardData {
@@ -115,8 +137,68 @@ export interface TenantDashboardData {
   household: CoResident[];
   emergencyContacts: EmergencyContact[];
   payments: TenantPayment[];
+  rentLedger?: TenantRentLedger | null;
 }
 
 export async function fetchTenantSession(token: string): Promise<RpcResult<TenantDashboardData>> {
   return rpc<TenantDashboardData>("tenant_session_data", { p_token: token });
+}
+
+/* ── Maintenance requests ─────────────────────────────────────────────── */
+
+export interface TenantRequest {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string;
+  priority: string;
+  status: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export async function fetchTenantRequests(token: string): Promise<RpcResult<{ requests: TenantRequest[] }>> {
+  return rpc("tenant_fetch_requests", { p_token: token });
+}
+
+export async function createTenantRequest(
+  token: string,
+  input: { category: string; priority: string; title: string; description?: string },
+): Promise<RpcResult<{ requestId: string }>> {
+  return rpc("tenant_create_request", {
+    p_token: token,
+    p_category: input.category,
+    p_priority: input.priority,
+    p_title: input.title,
+    p_description: input.description ?? "",
+  });
+}
+
+/* ── BrightPay (system M-Pesa) — records + status reporting ───────────── */
+
+export async function brightpayInitiate(
+  token: string,
+  input: { amount: number; phone: string; category: string; externalReference: string },
+): Promise<RpcResult<{ paymentId: string; externalReference: string }>> {
+  return rpc("tenant_brightpay_initiate", {
+    p_token: token,
+    p_amount: input.amount,
+    p_phone: input.phone,
+    p_category: input.category,
+    p_external_reference: input.externalReference,
+  });
+}
+
+export async function brightpayStatus(
+  token: string,
+  paymentId: string,
+  status: "completed" | "failed",
+  receipt?: string,
+): Promise<RpcResult<{ ok: boolean }>> {
+  return rpc("tenant_brightpay_status", {
+    p_token: token,
+    p_payment_id: paymentId,
+    p_status: status,
+    p_receipt: receipt ?? "",
+  });
 }

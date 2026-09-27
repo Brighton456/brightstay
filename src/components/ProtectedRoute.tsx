@@ -4,8 +4,11 @@ import { SplashScreen } from "@/components/app/SplashScreen";
 
 /**
  * Route guard over table-backed sessions.
- * - roles=["tenant"]       → any tenant session
+ * - roles=["tenant"] → any tenant session
  * - roles=["landlord","caretaker"] → staff session with that role
+ *
+ * Staff with a pending first-login password change are routed to
+ * /manager/change-password before they can reach the portal.
  */
 export function ProtectedRoute({
   children,
@@ -18,6 +21,10 @@ export function ProtectedRoute({
 
   if (!ready) return <SplashScreen />;
   if (!session) return <Navigate to="/auth" replace />;
+
+  if (session.kind === "staff" && session.mustChangePassword) {
+    return <Navigate to="/manager/change-password" replace />;
+  }
 
   if (roles && roles.length > 0) {
     if (session.kind === "tenant") {
