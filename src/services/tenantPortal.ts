@@ -24,6 +24,8 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<RpcRes
 
 export interface VerifyCodeResult {
   token: string;
+  /** True while the tenant still holds a password someone else issued. */
+  mustChangePassword?: boolean;
   tenant: {
     id: string;
     fullName: string;
@@ -34,6 +36,44 @@ export interface VerifyCodeResult {
 
 export async function verifyAccessCode(code: string): Promise<RpcResult<VerifyCodeResult>> {
   return rpc<VerifyCodeResult>("tenant_verify_code", { p_code: code });
+}
+
+/**
+ * Returning-tenant login with username + password (issued by the landlord).
+ * Complements the one-time 6-digit access code so tenants can log back in
+ * on a new device. Session token works exactly like a code-claimed one.
+ */
+export async function loginWithCredentials(
+  username: string,
+  password: string,
+): Promise<RpcResult<VerifyCodeResult>> {
+  return rpc<VerifyCodeResult>("tenant_login", {
+    p_username: username,
+    p_password: password,
+  });
+}
+
+/**
+ * Security state of a live tenant session — drives the forced first-login
+ * password change. Cheap probe, safe to call on every restore/refresh.
+ */
+export interface TenantSecurityState {
+  valid: boolean;
+  mustChangePassword?: boolean;
+  username?: string | null;
+}
+
+export async function fetchTenantSecurityState(token: string): Promise<RpcResult<TenantSecurityState>> {
+  return rpc<TenantSecurityState>("tenant_security_state", { p_token: token });
+}
+
+/** The tenant sets their own password (clears the must-change flag server-side). */
+export async function changeTenantPassword(token: string, newPassword: string): Promise<{ error?: string }> {
+  const res = await rpc<{ ok: boolean }>("tenant_change_password", {
+    p_token: token,
+    p_new_password: newPassword,
+  });
+  return res.error ? { error: res.error } : {};
 }
 
 /* ── Wizard steps ──────────────────────────────────────────────────────── */

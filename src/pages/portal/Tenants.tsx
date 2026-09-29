@@ -4,6 +4,8 @@ import {
   CalendarClock, Briefcase, Wallet, TriangleAlert, BadgeCheck, Clock, ReceiptText, ChevronRight,
 } from "lucide-react";
 import { useStaffData } from "@/hooks/useStaffData";
+import { useAppSession } from "@/contexts/AppSessionContext";
+import { staffSetTenantCredentials } from "@/services/staffAuth";
 import { Avatar } from "@/components/app/Avatar";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { Input } from "@/components/ui/input";
@@ -347,6 +349,9 @@ function TenantDetail({ tenant: t, onClose }: { tenant: StaffTenant; onClose: ()
           )}
         </section>
 
+        {/* Sign-in credentials (landlord only) */}
+        <TenantCredentials tenant={t} />
+
         {/* Payment history */}
         <TenantPaymentHistory tenantId={t.id} />
 
@@ -357,6 +362,110 @@ function TenantDetail({ tenant: t, onClose }: { tenant: StaffTenant; onClose: ()
         <Button variant="outline" className="w-full rounded-xl" onClick={onClose}>Close</Button>
       </div>
     </div>
+  );
+}
+
+/** Lands in the Drawer copy: 8-char temp password the tenant must replace. */
+function tempPassword(): string {
+  const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+/**
+ * Landlord-only credential issue/reset. A tenant who loses their password (or
+ * never got one) is handed a fresh username + temporary password here; the
+ * server forces them to choose their own on the next sign-in.
+ */
+function TenantCredentials({ tenant: t }: { tenant: StaffTenant }) {
+  const { token } = useStaffData();
+  const { session } = useAppSession();
+  const isLandlord = session?.kind === "staff" && session.user.role === "landlord";
+  const [username, setUsername] = useState((t.phone ?? "").replace(/\D/g, ""));
+  const [busy, setBusy] = useState(false);
+  const [issued, setIssued] = useState<{ username: string; password: string } | null>(null);
+
+  const issue = async () => {
+    if (!token) return toast.error("Your session has expired — sign in again.");
+    const clean = username.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "");
+    if (clean.length < 3) return toast.error("Username needs at least 3 characters (letters, numbers, . _ -).");
+    const password = tempPassword();
+    setBusy(true);
+    const res = await staffSetTenantCredentials(token, { tenantId: t.id, username: clean, password });
+    setBusy(false);
+    if (res.error) return toast.error(res.error);
+    setIssued({ username: res.data?.username ?? clean, password });
+    toast.success("Credentials issued — share them privately");
+  };
+
+  return (
+    <section className="space-y-2" data-testid="tenant-credentials">
+      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-700/80">Sign-in credentials</p>
+      {issued ? (
+        <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+          <p className="text-xs font-semibold text-emerald-900">
+            Share these with {t.fullName.split(" ")[0]} privately (SMS or WhatsApp):
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-white px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Username</p>
+              <p className="select-all font-mono text-sm font-semibold text-foreground">{issued.username}</p>
+            </div>
+            <div className="rounded-lg bg-white px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Temp password</p>
+              <p className="select-all font-mono text-sm font-semibold text-foreground">{issued.password}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 flex-1 rounded-lg"
+              onClick={() => {
+                navigator.clipboard
+                  .writeText(`BrightStay login\nUsername: ${issued.username}\nPassword: ${issued.password}`)
+                  .then(() => toast.success("Copied"))
+                  .catch(() => toast.error("Could not copy"));
+              }}
+            >
+              Copy
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 flex-1 rounded-lg" onClick={() => setIssued(null)}>
+              Done
+            </Button>
+          </div>
+          <p className="text-[11px] text-emerald-800">
+            {t.fullName.split(" ")[0]} must set their own password the first time they sign in.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2 rounded-xl border bg-card p-3.5">
+          <Input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username (e.g. 0712345678)"
+            className="h-11 rounded-xl"
+            data-testid="tenant-credential-username"
+            aria-label="Tenant username"
+          />
+          <Button
+            onClick={issue}
+            disabled={busy || !isLandlord}
+            variant="outline"
+            className="h-10 w-full gap-2 rounded-xl"
+            title={isLandlord ? undefined : "Only the landlord can issue tenant credentials"}
+          >
+            <KeyRound className="h-4 w-4" />
+            {busy ? "Issuing…" : "Issue username & temp password"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            {isLandlord
+              ? "Creates a new temporary password. The tenant changes it on first sign-in."
+              : "Only the landlord can issue or reset tenant credentials."}
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -27,6 +27,8 @@ export interface StaffSessionData {
 export interface TenantSessionData {
   kind: "tenant";
   token: string;
+  /** True while the tenant still holds a temp password → forced change. */
+  mustChangePassword: boolean;
   tenant: {
     id: string;
     fullName: string;
@@ -47,7 +49,9 @@ interface AppSessionContextType {
     fullName: string;
     phone?: string;
   }) => Promise<{ error?: string; mustChangePassword?: boolean; token?: string }>;
-  claimTenant: (code: string) => Promise<{ error?: string }>;
+  claimTenant: (code: string) => Promise<{ error?: string; mustChangePassword?: boolean }>;
+  loginTenant: (username: string, password: string) => Promise<{ error?: string; mustChangePassword?: boolean }>;
+  changeTenantPassword: (newPassword: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   refreshTenantSession: () => Promise<void>;
   refreshStaffSession: () => Promise<void>;
@@ -60,6 +64,8 @@ const AppSessionContext = createContext<AppSessionContextType>({
   signInStaff: async () => ({}),
   signUpLandlord: async () => ({}),
   claimTenant: async () => ({}),
+  loginTenant: async () => ({}),
+  changeTenantPassword: async () => ({}),
   signOut: async () => {},
   refreshTenantSession: async () => {},
   refreshStaffSession: async () => {},
@@ -90,7 +96,12 @@ function writeStored(key: string, token: string | null) {
 }
 
 export function AppSessionProvider({ children }: { children: ReactNode }) {
-  const [ready, setReady] = useState(!isSupabaseConfigured);
+  // `ready` only flips once BOTH the anonymous carrier is up AND the stored
+  // staff/tenant sessions have been re-validated — so a reload of /app or
+  // /portal never flashes the login screen for an already-signed-in user.
+  const [carrierReady, setCarrierReady] = useState(!isSupabaseConfigured);
+  const [restored, setRestored] = useState(!isSupabaseConfigured);
+  const ready = carrierReady && restored;
   const [staff, setStaff] = useState<StaffSessionData | null>(null);
   const [tenant, setTenant] = useState<TenantSessionData | null>(null);
 
@@ -116,7 +127,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
       } catch {
         /* carrier session optional — RPCs still work via anon key */
       } finally {
-        if (!cancelled) setReady(true);
+        if (!cancelled) setCarrierReady(true);
       }
     })();
     return () => {
@@ -147,15 +158,24 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
       const tenantStored = readStored(TENANT_KEY);
       if (tenantStored) {
-        const res = await tenantPortal.fetchTenantSession(tenantStored.token);
+        const [res, security] = await Promise.all([
+          tenantPortal.fetchTenantSession(tenantStored.token),
+          tenantPortal.fetchTenantSecurityState(tenantStored.token),
+        ]);
         if (!cancelled) {
           if (res.data?.tenant) {
-            setTenant({ kind: "tenant", token: tenantStored.token, tenant: res.data.tenant });
+            setTenant({
+              kind: "tenant",
+              token: tenantStored.token,
+              tenant: res.data.tenant,
+              mustChangePassword: security.data?.mustChangePassword ?? false,
+            });
           } else {
             writeStored(TENANT_KEY, null);
           }
         }
       }
+      if (!cancelled) setRestored(true);
     })();
     return () => {
       cancelled = true;
@@ -197,7 +217,28 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
     const res = await tenantPortal.verifyAccessCode(code);
     if (res.error || !res.data) return { error: res.error ?? "Invalid code." };
     writeStored(TENANT_KEY, res.data.token);
-    setTenant({ kind: "tenant", token: res.data.token, tenant: res.data.tenant });
+    const mustChangePassword = res.data.mustChangePassword ?? false;
+    setTenant({ kind: "tenant", token: res.data.token, tenant: res.data.tenant, mustChangePassword });
+    return { mustChangePassword };
+  }, []);
+
+  const loginTenant = useCallback(async (username: string, password: string) => {
+    const res = await tenantPortal.loginWithCredentials(username, password);
+    if (res.error || !res.data) return { error: res.error ?? "Invalid username or password." };
+    writeStored(TENANT_KEY, res.data.token);
+    const mustChangePassword = res.data.mustChangePassword ?? false;
+    setTenant({ kind: "tenant", token: res.data.token, tenant: res.data.tenant, mustChangePassword });
+    return { mustChangePassword };
+  }, []);
+
+  /** Forced first-login flow: the tenant replaces the temp password. */
+  const changeTenantPassword = useCallback(async (newPassword: string) => {
+    const token = tenantRef.current?.token;
+    if (!token) return { error: "Invalid session." };
+    const res = await tenantPortal.changeTenantPassword(token, newPassword);
+    if (res.error) return res;
+    const prev = tenantRef.current;
+    if (prev) setTenant({ ...prev, mustChangePassword: false });
     return {};
   }, []);
 
@@ -216,13 +257,20 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
   const refreshTenantSession = useCallback(async () => {
     const token = tenantRef.current?.token;
     if (!token) return;
-    const res = await tenantPortal.fetchTenantSession(token);
+    const [res, security] = await Promise.all([
+      tenantPortal.fetchTenantSession(token),
+      tenantPortal.fetchTenantSecurityState(token),
+    ]);
     if (res.data?.tenant) {
       const prev = tenantRef.current;
-      const next: TenantSessionData = { kind: "tenant", token, tenant: res.data.tenant };
+      if (!prev) return;
+      const mustChangePassword = security.data?.mustChangePassword ?? prev.mustChangePassword;
+      const next: TenantSessionData = { kind: "tenant", token, tenant: res.data.tenant, mustChangePassword };
       // Only update state when the fetched data actually changed — otherwise
       // every refresh would create a new context value and retrigger effects.
-      if (JSON.stringify(prev?.tenant) !== JSON.stringify(next.tenant)) setTenant(next);
+      if (JSON.stringify(prev.tenant) !== JSON.stringify(next.tenant) || prev.mustChangePassword !== mustChangePassword) {
+        setTenant(next);
+      }
     }
   }, []);
 
@@ -249,6 +297,7 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
 
   const clearMustChangePassword = useCallback(() => {
     setStaff((s) => (s ? { ...s, mustChangePassword: false } : s));
+    setTenant((t) => (t ? { ...t, mustChangePassword: false } : t));
   }, []);
 
   const session: AppSession = useMemo(() => staff ?? tenant, [staff, tenant]);
@@ -261,6 +310,8 @@ export function AppSessionProvider({ children }: { children: ReactNode }) {
         signInStaff,
         signUpLandlord,
         claimTenant,
+        loginTenant,
+        changeTenantPassword,
         signOut,
         refreshTenantSession,
         refreshStaffSession,

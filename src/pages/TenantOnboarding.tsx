@@ -116,6 +116,8 @@ export default function TenantOnboarding() {
   const incomeOptions = useMemo(() => INCOME_BY_OCCUPATION[occupation] ?? [], [occupation]);
 
   if (session?.kind !== "tenant") return <Navigate to="/tenant/access" replace />;
+  // Temp password? The wizard waits until the tenant owns their password.
+  if (session.mustChangePassword) return <Navigate to="/tenant/change-password" replace />;
   if (session.tenant.onboardingCompleted) return <Navigate to="/app" replace />;
 
   const tenantToken = session.token;

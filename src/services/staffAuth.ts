@@ -271,6 +271,22 @@ export async function staffChangePassword(token: string, newPassword: string): P
   return res.error ? { error: res.error } : {};
 }
 
+/**
+ * Landlord-only: (re)issue a tenant's username + temporary password.
+ * The server forces the tenant to replace it on their next sign-in.
+ */
+export async function staffSetTenantCredentials(
+  token: string,
+  input: { tenantId: string; username: string; password: string },
+): Promise<RpcResult<{ ok: boolean; username: string; mustChangePassword?: boolean }>> {
+  return rpc("staff_set_tenant_credentials", {
+    p_token: token,
+    p_tenant_id: input.tenantId,
+    p_username: input.username,
+    p_password: input.password,
+  });
+}
+
 export async function fetchStaffOverview(token: string): Promise<StaffOverview> {
   const res = await rpc<StaffOverview>("staff_overview", { p_token: token });
   if (res.error || !res.data) {

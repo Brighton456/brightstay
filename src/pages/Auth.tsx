@@ -1,35 +1,33 @@
 import { useState } from "react";
 import { useNavigate, Link, Navigate } from "react-router-dom";
-import { Lock, UserRound, ArrowRight, KeyRound, ShieldCheck, Building2 } from "lucide-react";
+import { Lock, UserRound, ArrowRight, ShieldCheck, Phone } from "lucide-react";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { Logo, LogoMark } from "@/components/app/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
 
 /**
- * /auth — the shared login page.
+ * /auth — one sign-in screen for everyone.
  *
- *  • Tenants log in with the 6-digit access code their caretaker gave them
- *    (login-only — tenants can NEVER sign up).
- *  • Caretakers sign in with the username + password the landlord issued.
- *  • Landlords use the discreet /manager route instead (no advert here).
+ * Deliberately unlabelled: residents and staff both land here and the same
+ * username/password form (or a 6-digit access code) gets them in. The portal
+ * route is not advertised anywhere on this page.
  */
 export default function Auth() {
   const navigate = useNavigate();
-  const { session, signInStaff, claimTenant } = useAppSession();
+  const { session, signInStaff, claimTenant, loginTenant } = useAppSession();
   const [busy, setBusy] = useState(false);
-  const [pane, setPane] = useState<"tenant" | "caretaker">("tenant");
 
-  // Tenant
-  const [code, setCode] = useState("");
-  // Caretaker
+  // Shared username/password form
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // 6-digit access code
+  const [code, setCode] = useState("");
 
   if (session?.kind === "tenant") {
+    if (session.mustChangePassword) return <Navigate to="/tenant/change-password" replace />;
     return <Navigate to={session.tenant.onboardingCompleted ? "/app" : "/tenant/onboarding"} replace />;
   }
   if (session?.kind === "staff") {
@@ -38,29 +36,56 @@ export default function Auth() {
 
   const handleCode = async () => {
     if (!isSupabaseConfigured) return toast.info("Supabase is not configured.");
-    if (!/^\d{6}$/.test(code)) return toast.error("Enter the 6-digit code from your caretaker.");
+    if (!/^\d{6}$/.test(code)) return toast.error("Enter the 6-digit access code you were given.");
     setBusy(true);
-    const { error } = await claimTenant(code);
+    const { error, mustChangePassword } = await claimTenant(code);
     setBusy(false);
     if (error) return toast.error(error);
+    if (mustChangePassword) {
+      toast.info("Almost there — choose your own password to continue.");
+      navigate("/tenant/change-password", { replace: true });
+      return;
+    }
     toast.success("Code accepted — let's set up your stay");
     navigate("/tenant/onboarding", { replace: true });
   };
 
+  /**
+   * One form, two account tables. Staff accounts are tried first, then
+   * tenant credentials, so nobody has to know which door they belong to.
+   */
   const handleSignIn = async () => {
     if (!isSupabaseConfigured) return toast.info("Supabase is not configured.");
-    if (!username.trim() || !password) return toast.error("Enter your username and password.");
+    const u = username.trim();
+    if (!u || !password) return toast.error("Enter your username and password.");
     setBusy(true);
-    const { error, mustChangePassword } = await signInStaff(username.trim(), password);
-    setBusy(false);
-    if (error) return toast.error(error);
-    if (mustChangePassword) {
-      toast.info("First login — set a new password to continue.");
-      navigate("/manager/change-password", { replace: true });
+    const staffRes = await signInStaff(u, password);
+    if (!staffRes.error) {
+      setBusy(false);
+      if (staffRes.mustChangePassword) {
+        toast.info("First login — set a new password to continue.");
+        navigate("/manager/change-password", { replace: true });
+        return;
+      }
+      toast.success("Welcome back");
+      navigate("/portal", { replace: true });
       return;
     }
-    toast.success("Welcome back");
-    navigate("/portal", { replace: true });
+    const tenantRes = await loginTenant(u, password);
+    setBusy(false);
+    if (!tenantRes.error) {
+      if (tenantRes.mustChangePassword) {
+        toast.info("First login — choose your own password to continue.");
+        navigate("/tenant/change-password", { replace: true });
+        return;
+      }
+      toast.success("Welcome back");
+      navigate("/app", { replace: true });
+      return;
+    }
+    // A lockout message is more useful than the generic rejection.
+    const specific = [tenantRes.error, staffRes.error].find((e) => e && /lock/i.test(e));
+    toast.error(specific ?? "Invalid username or password.");
   };
 
   return (
@@ -70,118 +95,102 @@ export default function Auth() {
 
       <header className="relative z-10 flex items-center justify-between px-6 py-5">
         <Link to="/"><Logo /></Link>
-        <Link
-          to="/manager"
-          className="text-xs font-semibold text-muted-foreground/70 transition hover:text-foreground"
-          data-testid="landlord-link"
-        >
-          Landlord?
-        </Link>
       </header>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 pb-16 pt-6">
+      <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-16 pt-6">
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-brand-700/80">Welcome home</p>
           <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-foreground">
             Your stay, <span className="text-gradient-brand">beautiful</span>
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Tenants log in with an access code. Caretakers sign in below.
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+            Sign in to continue.
           </p>
         </div>
 
-        {/* Tenant / Caretaker switch */}
-        <div className="mx-auto mt-7 flex w-full max-w-xs rounded-full border border-border/60 bg-card p-1 shadow-card" role="tablist" aria-label="Choose login type">
-          {(
-            [
-              { id: "tenant", label: "I'm a tenant", icon: KeyRound },
-              { id: "caretaker", label: "I'm a caretaker", icon: Building2 },
-            ] as const
-          ).map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={pane === id}
-              onClick={() => setPane(id)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition-all",
-                pane === id ? "bg-brand-100/90 text-brand-800 shadow-sm" : "text-stone-500 hover:text-foreground",
-              )}
-              data-testid={`auth-tab-${id}`}
+        <div className="mt-7 rounded-2xl border bg-card/80 p-6 shadow-card backdrop-blur" data-testid="signin-card">
+          <div className="space-y-3">
+            <div className="relative">
+              <UserRound className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
+                placeholder="Username"
+                className="h-12 rounded-xl pl-10"
+                autoComplete="username"
+                data-testid="login-username"
+                aria-label="Username"
+              />
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSignIn()}
+                type="password"
+                placeholder="Password"
+                className="h-12 rounded-xl pl-10"
+                autoComplete="current-password"
+                data-testid="login-password"
+                aria-label="Password"
+              />
+            </div>
+            <Button
+              onClick={handleSignIn}
+              disabled={busy || !username.trim() || !password}
+              className="h-12 w-full gap-2 rounded-xl"
+              data-testid="login-submit"
             >
-              <Icon className="h-3.5 w-3.5" /> {label}
-            </button>
-          ))}
-        </div>
+              {busy ? "Signing in…" : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+            </Button>
+          </div>
 
-        {pane === "tenant" ? (
-          <div className="mt-5 rounded-2xl border bg-card/80 p-6 shadow-card backdrop-blur" data-testid="tenant-code-card">
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">or</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <div data-testid="access-code-card">
+            <p className="flex items-center gap-2 font-display text-[15px] font-semibold text-foreground">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
                 <ShieldCheck className="h-4 w-4" />
               </span>
-              <div>
-                <p className="font-display text-[15px] font-semibold text-foreground">Log in with your access code</p>
-                <p className="text-xs text-muted-foreground">The 6-digit code from your caretaker. No signup needed.</p>
-              </div>
-            </div>
+              Log in with your access code
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The 6-digit code you were given. No signup needed.
+            </p>
             <Input
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              onKeyDown={(e) => e.key === "Enter" && handleCode()}
               placeholder="••••••"
               inputMode="numeric"
-              className="mt-4 h-14 rounded-xl text-center font-display text-2xl tracking-[0.55em]"
-              autoFocus
+              className="mt-3 h-14 rounded-xl text-center font-display text-2xl tracking-[0.55em]"
               data-testid="access-code-input"
               aria-label="6-digit access code"
             />
-            <Button onClick={handleCode} disabled={busy || code.length !== 6} className="mt-3 h-12 w-full gap-2 rounded-xl">
+            <Button
+              onClick={handleCode}
+              disabled={busy || code.length !== 6}
+              variant="secondary"
+              className="mt-3 h-12 w-full gap-2 rounded-xl"
+            >
               {busy ? "Checking…" : <>Unlock my stay <ArrowRight className="h-4 w-4" /></>}
             </Button>
-            <button
-              onClick={() => navigate("/tenant/access")}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-brand-300/70 bg-brand-50/60 px-4 py-3.5 text-sm font-semibold text-brand-800 transition hover:border-brand-400 hover:bg-brand-100/60"
-              data-testid="access-code-quiz"
-            >
-              <KeyRound className="h-4 w-4" />
-              New tenant? Click here to log in with your access code
-            </button>
           </div>
-        ) : (
-          <div className="mt-5 rounded-2xl border bg-card/80 p-6 shadow-card backdrop-blur" data-testid="caretaker-card">
-            <div className="space-y-3">
-              <div className="relative">
-                <UserRound className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username"
-                  className="h-12 rounded-xl pl-10"
-                  autoComplete="username"
-                  data-testid="caretaker-username"
-                />
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  type="password"
-                  placeholder="Password"
-                  className="h-12 rounded-xl pl-10"
-                  autoComplete="current-password"
-                  data-testid="caretaker-password"
-                />
-              </div>
-              <Button onClick={handleSignIn} disabled={busy} className="h-12 w-full gap-2 rounded-xl">
-                {busy ? "Signing in…" : <>Sign in to your portal <ArrowRight className="h-4 w-4" /></>}
-              </Button>
-              <p className="pt-1 text-center text-[11px] text-muted-foreground">
-                Caretaker accounts are issued by the landlord — no signup.
-              </p>
-            </div>
-          </div>
-        )}
+
+          <p className="mt-5 flex items-start gap-1.5 text-center text-[11px] leading-relaxed text-muted-foreground">
+            <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">
+              Forgot your password? Ask the property office for a new one — passwords and codes are issued to you,
+              never self-registered.
+            </span>
+          </p>
+        </div>
 
         <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
           <LogoMark className="h-3.5 w-3.5 rounded" /> BrightStay · Your stay, handled

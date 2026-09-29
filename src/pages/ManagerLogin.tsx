@@ -16,8 +16,9 @@ import { isSupabaseConfigured } from "@/integrations/supabase/client";
  *
  * Labels never say "Manager": this is the Landlord portal. The landlord signs
  * in (or, on first run only, creates the landlord account and registers their
- * apartment). Caretakers sign in here too — accounts are issued by the
- * landlord. Tenants sign in at /auth with credentials or an access code.
+ * apartment). This route is deliberately unadvertised — everyone else signs in
+ * at /auth. Accounts are always issued by the landlord, never self-created
+ * here except for that first-run landlord.
  */
 export function ManagerAuthScreen({ initialMode = "signin" }: { initialMode?: "signin" | "register" }) {
   const navigate = useNavigate();
@@ -125,9 +126,6 @@ export function ManagerAuthScreen({ initialMode = "signin" }: { initialMode?: "s
 
       <header className="relative z-10 flex items-center justify-between px-6 py-5">
         <Link to="/"><Logo /></Link>
-        <Link to="/auth" className="text-sm font-semibold text-muted-foreground transition hover:text-foreground">
-          I'm a tenant
-        </Link>
       </header>
 
       <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-16 pt-6">
@@ -138,12 +136,8 @@ export function ManagerAuthScreen({ initialMode = "signin" }: { initialMode?: "s
           </h1>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
             {mode === "register"
-              ? "First run: create the landlord account and register your apartment. Caretaker accounts are added from the portal."
-              : "For landlords and caretakers. Tenants sign in at "}
-            {mode === "signin" && (
-              <Link to="/auth" className="font-semibold text-brand-700 hover:underline">/auth</Link>
-            )}
-            {mode === "signin" ? "." : ""}
+              ? "First run: create the landlord account and register your apartment. Team accounts are added from the portal."
+              : "Sign in with your landlord account."}
           </p>
         </div>
 
@@ -185,7 +179,7 @@ export function ManagerAuthScreen({ initialMode = "signin" }: { initialMode?: "s
                 {busy ? "Signing in…" : <>Sign in to your portal <ArrowRight className="h-4 w-4" /></>}
               </Button>
               <p className="flex items-center justify-center gap-1.5 pt-1 text-center text-[11px] text-muted-foreground">
-                <ShieldCheck className="h-3.5 w-3.5" /> Caretaker accounts are issued by the landlord.
+                <ShieldCheck className="h-3.5 w-3.5" /> Accounts are issued by the landlord — there is no public signup.
               </p>
               {firstRun === false && (
                 <button

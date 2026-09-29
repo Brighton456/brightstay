@@ -216,6 +216,7 @@ function AllocateDialog({
   const [phase, setPhase] = useState<"form" | "success">("form");
   const [busy, setBusy] = useState(false);
   const [accessCode, setAccessCode] = useState("");
+  const [newCreds, setNewCreds] = useState<{ username: string; tempPassword: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [tenantName, setTenantName] = useState("");
@@ -245,6 +246,11 @@ function AllocateDialog({
     setBusy(false);
     if (res.error || !res.data) return toast.error(res.error ?? "Could not allocate the unit.");
     setAccessCode(res.data.accessCode);
+    setNewCreds(
+      res.data.username && res.data.tempPassword
+        ? { username: res.data.username, tempPassword: res.data.tempPassword }
+        : null,
+    );
     setPhase("success");
   };
 
@@ -282,6 +288,23 @@ function AllocateDialog({
                 Expires in 30 days · single use
               </p>
             </div>
+            {newCreds && (
+              <div className="rounded-2xl border bg-card px-4 py-3 text-left">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Also give them a re-login (lost phone / new device):
+                </p>
+                <p className="mt-1 font-mono text-sm font-semibold text-foreground" data-testid="new-tenant-username">
+                  Username: {newCreds.username}
+                </p>
+                <p className="font-mono text-sm font-semibold text-foreground" data-testid="new-tenant-password">
+                  Temp password: {newCreds.tempPassword}
+                </p>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {tenantName.trim().split(" ")[0]} will be asked to choose their own password the first time they sign
+                  in — this one stops working after that.
+                </p>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button variant="outline" onClick={copyCode} className="flex-1 gap-2 rounded-xl">
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copy code

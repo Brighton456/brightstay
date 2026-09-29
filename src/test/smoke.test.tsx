@@ -50,16 +50,20 @@ describe("BrightStay smoke", () => {
     expect(screen.getAllByText(/beautiful|residential rental/i).length).toBeGreaterThan(0);
   });
 
-  it("renders the tenant login-only page with the access-code quiz", async () => {
+  it("renders one unlabelled sign-in screen with username/password and an access code", async () => {
     renderApp("/auth");
     expect(await screen.findByText(/Welcome home/i)).toBeInTheDocument();
-    expect(await screen.findByTestId("access-code-input")).toBeInTheDocument();
-    expect(await screen.findByText(/New tenant\? Click here to log in with your access code/i)).toBeInTheDocument();
+    expect(await screen.findByTestId("login-username")).toBeInTheDocument();
+    expect(screen.getByTestId("login-password")).toBeInTheDocument();
+    expect(screen.getByTestId("access-code-input")).toBeInTheDocument();
   });
 
-  it("keeps tenants login-only — no signup affordance on /auth", async () => {
+  it("never names roles on /auth and offers no signup", async () => {
     renderApp("/auth");
-    expect(await screen.findByText(/I'm a tenant/i)).toBeInTheDocument();
+    expect(await screen.findByTestId("signin-card")).toBeInTheDocument();
+    expect(screen.queryByText(/I'm a tenant/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/I'm a caretaker/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("landlord-link")).not.toBeInTheDocument();
     expect(screen.queryByText(/sign up/i, { exact: false })).not.toBeInTheDocument();
   });
 

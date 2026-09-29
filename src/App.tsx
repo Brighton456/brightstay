@@ -12,6 +12,7 @@ import Auth from "@/pages/Auth";
 import ManagerLogin, { ManagerAuthScreen } from "@/pages/ManagerLogin";
 import ManagerChangePassword from "@/pages/ManagerChangePassword";
 import TenantAccess from "@/pages/TenantAccess";
+import TenantChangePassword from "@/pages/TenantChangePassword";
 import TenantOnboarding from "@/pages/TenantOnboarding";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -42,6 +43,7 @@ const queryClient = new QueryClient();
 function RoleHome() {
   const { session } = useAppSession();
   if (session?.kind === "tenant") {
+    if (session.mustChangePassword) return <Navigate to="/tenant/change-password" replace />;
     return <Navigate to={session.tenant.onboardingCompleted ? "/app" : "/tenant/onboarding"} replace />;
   }
   if (session?.kind === "staff") {
@@ -61,6 +63,7 @@ export function AppRoutes() {
       <Route path="/manager/register" element={<ManagerAuthScreen initialMode="register" />} />
       <Route path="/manager/change-password" element={<ManagerChangePassword />} />
       <Route path="/tenant/access" element={<TenantAccess />} />
+      <Route path="/tenant/change-password" element={<TenantChangePassword />} />
       <Route path="/tenant/onboarding" element={<TenantOnboarding />} />
       <Route path="/home" element={<RoleHome />} />
       <Route

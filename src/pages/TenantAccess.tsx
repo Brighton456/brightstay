@@ -18,15 +18,21 @@ export default function TenantAccess() {
   const [code, setCode] = useState("");
 
   if (session?.kind === "tenant") {
+    if (session.mustChangePassword) return <Navigate to="/tenant/change-password" replace />;
     return <Navigate to={session.tenant.onboardingCompleted ? "/app" : "/tenant/onboarding"} replace />;
   }
 
   const handleVerify = async () => {
-    if (!/^\d{6}$/.test(code)) return toast.error("Enter the 6-digit code from your caretaker.");
+    if (!/^\d{6}$/.test(code)) return toast.error("Enter the 6-digit code you were given.");
     setBusy(true);
-    const { error } = await claimTenant(code);
+    const { error, mustChangePassword } = await claimTenant(code);
     setBusy(false);
     if (error) return toast.error(error);
+    if (mustChangePassword) {
+      toast.info("Almost there — choose your own password to continue.");
+      navigate("/tenant/change-password", { replace: true });
+      return;
+    }
     toast.success("Code accepted — let's set up your stay");
     navigate("/tenant/onboarding", { replace: true });
   };

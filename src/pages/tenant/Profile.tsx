@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Phone, Home, Users, Briefcase, HeartPulse, ChevronRight, Upload } from "lucide-react";
+import { LogOut, Phone, Home, Users, Briefcase, HeartPulse, ChevronRight, Upload, KeyRound } from "lucide-react";
 import { useAppSession } from "@/contexts/AppSessionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchTenantSession, type TenantDashboardData } from "@/services/tenantPortal";
@@ -152,6 +152,16 @@ export default function TenantProfile() {
         >
           <span className="flex items-center gap-3 text-sm font-medium text-foreground">
             <Upload className="h-4 w-4 text-brand-600" /> My documents
+          </span>
+          <ChevronRight className="h-4 w-4 text-stone-300" />
+        </button>
+        <button
+          onClick={() => navigate("/tenant/change-password")}
+          className="flex w-full items-center justify-between rounded-2xl border bg-card p-4 text-left shadow-card"
+          data-testid="tenant-change-password-link"
+        >
+          <span className="flex items-center gap-3 text-sm font-medium text-foreground">
+            <KeyRound className="h-4 w-4 text-brand-600" /> Change my password
           </span>
           <ChevronRight className="h-4 w-4 text-stone-300" />
         </button>
